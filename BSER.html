@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BSER Movement Slot Machine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Tone.js for sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .slot-container {
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: 1400px; /* Increased max-width for 4 reels */
+            width: 100%;
+            text-align: center;
+            border: 4px solid #3b82f6; /* Blue border */
+        }
+        .reel {
+            background-color: #e2e8f0; /* Lighter gray for reels */
+            border-radius: 10px;
+            padding: 20px 15px;
+            margin: 0 8px; /* Adjusted margin for 4 reels */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 240px; /* Ensure consistent height, scaled for larger font */
+            font-size: 2.0rem; /* Slightly adjusted for 4 reels */
+            font-weight: 600;
+            color: #1a202c; /* Dark text */
+            text-align: center;
+            overflow: hidden; /* Hide overflow during spin */
+            position: relative;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .reel-content {
+            transition: transform 0.3s ease-out; /* Smooth transition for content */
+        }
+        .spin-button, .llm-button {
+            background-color: #4CAF50; /* Green */
+            color: white;
+            padding: 25px 50px; /* Scaled padding */
+            border: none;
+            border-radius: 15px; /* Larger border-radius */
+            font-size: 2.4rem; /* 200% bigger from 1.2rem */
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3); /* Larger shadow */
+            margin: 10px; /* Add margin for spacing between buttons */
+        }
+        .llm-button {
+            background-color: #8B5CF6; /* Purple for LLM buttons */
+            font-size: 2rem; /* Slightly smaller for secondary buttons */
+            padding: 18px 35px;
+            border-radius: 12px;
+        }
+        .spin-button:hover {
+            background-color: #45a049; /* Darker green on hover */
+            transform: translateY(-4px); /* More pronounced hover effect */
+        }
+        .llm-button:hover {
+            background-color: #7C3AED; /* Darker purple on hover */
+            transform: translateY(-2px);
+        }
+        .spin-button:active, .llm-button:active {
+            transform: translateY(0);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+        }
+        .spin-button:disabled, .llm-button:disabled {
+            background-color: #9ca3af; /* Gray when disabled */
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .challenge-area, .llm-output-area {
+            background-color: #f8fafc; /* Very light gray */
+            border-radius: 15px; /* Larger border-radius */
+            padding: 40px; /* Scaled padding */
+            margin-top: 50px; /* Scaled margin */
+            border: 2px dashed #cbd5e0; /* Dashed border */
+            text-align: left;
+            min-height: 200px; /* Scaled min-height */
+        }
+        .llm-output-area {
+            border-style: solid; /* Solid border for LLM output */
+            border-color: #a78bfa; /* Lighter purple border */
+            margin-top: 30px; /* Smaller margin for consecutive areas */
+            display: none; /* Hidden by default */
+        }
+        .challenge-area h3, .llm-output-area h3 {
+            font-size: 2.5rem; /* 200% bigger from 1.25rem (tailwind xl) */
+            font-weight: 700;
+            margin-bottom: 20px; /* Scaled margin */
+        }
+        .challenge-area p, .llm-output-area p {
+            font-size: 2.2rem; /* 200% bigger from 1.125rem (tailwind lg) */
+            line-height: 1.5; /* Improve readability */
+        }
+        .hint-area {
+            background-color: #eff6ff; /* Light blue */
+            border-radius: 15px; /* Larger border-radius */
+            padding: 30px; /* Scaled padding */
+            margin-top: 30px; /* Scaled margin */
+            border: 2px solid #bfdbfe; /* Blue border */
+            text-align: left;
+            font-size: 1.9rem; /* 200% bigger from 0.95rem */
+            color: #2563eb;
+            display: none; /* Hidden by default */
+        }
+        .hint-area h3 {
+            font-size: 2.2rem; /* Scaled for consistency */
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        .hint-area p {
+            line-height: 1.4;
+        }
+        .hint-button {
+            background-color: #60a5fa; /* Light blue */
+            color: white;
+            padding: 18px 35px; /* Scaled padding */
+            border: none;
+            border-radius: 12px; /* Larger border-radius */
+            font-size: 2rem; /* 200% bigger from 1rem */
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 25px; /* Scaled margin */
+        }
+        .hint-button:hover {
+            background-color: #3b82f6; /* Darker blue on hover */
+        }
+        /* Tailwind classes for text sizes, adjusted manually for 200% increase */
+        .text-7xl { font-size: 4.5rem; /* Approx. 200% of 4xl (2.25rem) */ }
+        .text-2xl-custom { font-size: 2.25rem; /* Approx. 200% of lg (1.125rem) */ }
+        .text-3xl-custom { font-size: 2.5rem; /* Approx. 200% of xl (1.25rem) */ }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="slot-container">
+        <h1 class="text-7xl font-extrabold text-blue-700 mb-10">Movement Master Slot Machine</h1>
+        <p class="text-2xl-custom text-gray-700 mb-12">Spin the reels to generate a challenge! Analyze the movement using the BSER framework.</p>
+
+        <div class="flex justify-center items-stretch mb-12">
+            <div id="reel1" class="reel flex-1">
+                <div class="reel-content">BSER Concept</div>
+            </div>
+            <div id="reel2" class="reel flex-1">
+                <div class="reel-content">Category/Example</div>
+            </div>
+            <div id="reel3" class="reel flex-1">
+                <div class="reel-content">Sports Action</div>
+            </div>
+            <div id="reel4" class="reel flex-1">
+                <div class="reel-content">Sport Type</div>
+            </div>
+        </div>
+
+        <button id="spinButton" class="spin-button mb-10">SPIN THE CHALLENGE!</button>
+
+        <div id="challengeArea" class="challenge-area">
+            <h3 class="text-3xl-custom font-semibold text-gray-800 mb-6">Your Challenge:</h3>
+            <p id="challengeText" class="text-2xl-custom text-gray-700">Spin the reels to get your first challenge!</p>
+        </div>
+
+        <div class="flex justify-center flex-wrap mt-8">
+            <button id="showHintButton" class="hint-button">Show Hint/Answer Guide</button>
+            <button id="explainBserButton" class="llm-button">✨ Explain BSER Concept</button>
+            <button id="generateAnswerButton" class="llm-button">✨ Generate Example Answer</button>
+        </div>
+
+        <div id="hintArea" class="hint-area mt-8">
+            <h3 class="text-xl font-semibold mb-4">Hint/Answer Guide:</h3>
+            <p id="hintText" class="text-blue-800"></p>
+        </div>
+
+        <div id="bserExplanationArea" class="llm-output-area">
+            <h3 class="text-xl font-semibold mb-4">BSER Concept Explanation:</h3>
+            <p id="bserExplanationText" class="text-gray-700">Explanation will appear here...</p>
+        </div>
+
+        <div id="exampleAnswerArea" class="llm-output-area">
+            <h3 class="text-xl font-semibold mb-4">Example Answer:</h3>
+            <p id="exampleAnswerText" class="text-gray-700">Example answer will appear here...</p>
+        </div>
+    </div>
+
+    <script>
+        // Data extracted from the provided PDF document
+        const bserConcepts = [
+            { name: "Body Awareness", categories: [
+                { name: "Pathway", example: "the route taken during a movement (e.g., zigzag dribbling)" },
+                { name: "Level", example: "how high or low a movement occurs (e.g., low dribbling)" },
+                { name: "Body parts", example: "common body segments and joints (e.g., head, shoulder, feet)" },
+                { name: "Body shapes", example: "various forms the body assumes (e.g., wide, tall, star)" },
+                { name: "Action of body parts", example: "role a body segment plays (e.g., shifting weight)" },
+                { name: "Action of the whole body", example: "movement by the entire body (e.g., running, jumping)" }
+            ]},
+            { name: "Effort", categories: [
+                { name: "Time", example: "speed of movement (e.g., acceleration from walk to run)" },
+                { name: "Flow", example: "how continuous or fluid the movement is" },
+                { name: "Force", example: "strength/tension of movement (e.g., striking a volleyball hard)" }
+            ]},
+            { name: "Relationships", categories: [
+                { name: "People", example: "interaction with others (e.g., team play, opposing teams)" },
+                { name: "Position", example: "relationship with objects (e.g., moving over/under equipment)" },
+                { name: "Timing", example: "starting/stopping movement with others (e.g., unison in swimming)" },
+                { name: "Goal", example: "how people connect based on the goal of the movement (e.g., support vs. opposition)" },
+                { name: "Environment", example: "static or dynamic environment (e.g., stationary target)" }
+            ]},
+            { name: "Space Awareness", categories: [
+                { name: "Location", example: "area of movement (e.g., personal space vs. general space)" },
+                { name: "Direction", example: "the line along which the person moves (e.g., forward, backward, sideways)" },
+                { name: "Plane", example: "movement can take place in three different planes (sagittal, frontal, transverse)" }
+            ]}
+        ];
+
+        // Consolidated sports data with relevant actions for each sport
+        const sportsData = [
+            {
+                name: "Volleyball",
+                actions: [
+                    { name: "Spike/Smash", description: "A powerful overhead hit aimed downwards" },
+                    { name: "Block", description: "An action to intercept or defend against an opponent's attack" },
+                    { name: "Dig/Save", description: "A defensive play to prevent an object from hitting the ground or going out of bounds" },
+                    { name: "Pass", description: "Receiving the ball to set up an attack or keep it in play" },
+                    { name: "Serve", description: "Initiating a point by putting an object into play" },
+                    { name: "Dive/Slide", description: "A full-body extension or slide to reach an object or cover ground quickly" }
+                ]
+            },
+            {
+                name: "Basketball",
+                actions: [
+                    { name: "Dribble", description: "Controlling and moving a ball by bouncing or tapping it repeatedly" },
+                    { name: "Shot/Strike", description: "Propelling an object towards a target (e.g., basket)" },
+                    { name: "Pass", description: "Moving an object to a teammate or into an advantageous position" },
+                    { name: "Jump", description: "Propelling the body upwards (e.g., for a rebound or shot)" },
+                    { name: "Block", description: "An action to intercept or defend against an opponent's shot" },
+                    { name: "Run/Sprint", description: "Moving quickly on foot over a distance" }
+                ]
+            },
+            {
+                name: "Soccer",
+                actions: [
+                    { name: "Shot/Strike", description: "Propelling an object towards a target (e.g., goal)" },
+                    { name: "Dribble", description: "Controlling and moving a ball with the feet" },
+                    { name: "Pass", description: "Moving an object to a teammate or into an advantageous position" },
+                    { name: "Block", description: "An action to intercept or defend against an opponent's shot" },
+                    { name: "Run/Sprint", description: "Moving quickly on foot over a distance" },
+                    { name: "Dive/Slide", description: "A full-body extension or slide to reach an object or cover ground quickly" }
+                ]
+            },
+            {
+                name: "Swimming",
+                actions: [
+                    { name: "Run/Sprint", description: "Moving quickly through water (e.g., freestyle sprint)" },
+                    { name: "Dive/Slide", description: "Entering the water headfirst (e.g., start of race)" },
+                    { name: "Jump", description: "Pushing off the wall or starting block" }
+                ]
+            },
+            {
+                name: "Gymnastics",
+                actions: [
+                    { name: "Jump", description: "Propelling the body upwards (e.g., off a springboard, during a routine)" },
+                    { name: "Run/Sprint", description: "Moving quickly (e.g., approach for vault)" },
+                    { name: "Dive/Slide", description: "Performing a controlled fall or slide (e.g., dismounts)" },
+                    { name: "Body Shapes", description: "Assuming various forms (e.g., pike, tuck, straddle)" }
+                ]
+            },
+            {
+                name: "Tennis",
+                actions: [
+                    { name: "Serve", description: "Initiating a point by hitting the ball over the net" },
+                    { name: "Spike/Smash", description: "A powerful overhead hit aimed downwards" },
+                    { name: "Shot/Strike", description: "Hitting the ball with a racket" },
+                    { name: "Run/Sprint", description: "Moving quickly to cover the court" },
+                    { name: "Block", description: "A defensive volley to stop an opponent's powerful shot" },
+                    { name: "Dive/Slide", description: "Sliding to reach a wide shot" }
+                ]
+            },
+            {
+                name: "Badminton",
+                actions: [
+                    { name: "Spike/Smash", description: "A powerful overhead hit aimed downwards" },
+                    { name: "Serve", description: "Initiating a point by hitting the shuttlecock over the net" },
+                    { name: "Shot/Strike", description: "Hitting the shuttlecock with a racket" },
+                    { name: "Run/Sprint", description: "Moving quickly to cover the court" },
+                    { name: "Block", description: "A defensive shot to stop an opponent's powerful smash" },
+                    { name: "Dive/Slide", description: "Diving to retrieve a low shot" }
+                ]
+            },
+            {
+                name: "Track and Field",
+                actions: [
+                    { name: "Run/Sprint", description: "Moving quickly on foot over a distance (e.g., 100m sprint)" },
+                    { name: "Jump", description: "Propelling the body upwards or forwards (e.g., long jump, high jump)" },
+                    { name: "Shot/Strike", description: "Propelling an object (e.g., shot put, discus throw)" }
+                ]
+            },
+            {
+                name: "Table Tennis",
+                actions: [
+                    { name: "Spike/Smash", description: "A powerful overhead hit aimed downwards" },
+                    { name: "Serve", description: "Initiating a point by hitting the ball over the net" },
+                    { name: "Shot/Strike", description: "Hitting the ball with a paddle" },
+                    { name: "Block", description: "A defensive shot to stop an opponent's powerful smash" }
+                ]
+            },
+            {
+                name: "Hockey",
+                actions: [
+                    { name: "Dribble", description: "Controlling and moving the ball with a stick" },
+                    { name: "Shot/Strike", description: "Propelling the ball towards the goal" },
+                    { name: "Pass", description: "Moving the ball to a teammate" },
+                    { name: "Run/Sprint", description: "Moving quickly on foot with or without the ball" },
+                    { name: "Block", description: "An action to intercept or defend against an opponent's shot" }
+                ]
+            }
+        ];
+
+        const reel1 = document.getElementById('reel1');
+        const reel2 = document.getElementById('reel2');
+        const reel3 = document.getElementById('reel3');
+        const reel4 = document.getElementById('reel4');
+        const challengeText = document.getElementById('challengeText');
+        const hintText = document.getElementById('hintText');
+        const spinButton = document.getElementById('spinButton');
+        const showHintButton = document.getElementById('showHintButton');
+        const explainBserButton = document.getElementById('explainBserButton');
+        const generateAnswerButton = document.getElementById('generateAnswerButton');
+        const hintArea = document.getElementById('hintArea');
+        const bserExplanationArea = document.getElementById('bserExplanationArea');
+        const bserExplanationText = document.getElementById('bserExplanationText');
+        const exampleAnswerArea = document.getElementById('exampleAnswerArea');
+        const exampleAnswerText = document.getElementById('exampleAnswerText');
+
+        let currentReel1Value = null;
+        let currentReel2Value = null;
+        let currentReel3Value = null;
+        let currentReel4Value = null; // Stores the selected sport object {name, actions}
+        let audioContextStarted = false;
+
+        const spinSynth = new Tone.Synth().toDestination();
+        const stopSynth = new Tone.MembraneSynth().toDestination();
+        let globalSpinLoop = null;
+
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+        /**
+         * Selects a random item from an array.
+         * @param {Array} arr - The array to select from.
+         * @returns {*} A random item from the array.
+         */
+        function getRandomItem(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        /**
+         * Animates a single reel by rapidly changing its content before settling on a final value.
+         * @param {HTMLElement} reelElement - The DOM element for the reel.
+         * @param {Array} dataPool - The array of data items to pick from for animation.
+         * @param {string} displayKey - The key in the data item to display (e.g., 'name') or null for direct string.
+         * @returns {Promise<Object|string>} A promise that resolves with the final selected item.
+         */
+        function spinReel(reelElement, dataPool, displayKey) {
+            return new Promise(resolve => {
+                const reelContent = reelElement.querySelector('.reel-content');
+                let spinCount = 0;
+                const totalSpins = 25;
+                const spinInterval = 60;
+
+                const intervalId = setInterval(() => {
+                    const tempItem = getRandomItem(dataPool);
+                    reelContent.textContent = displayKey ? tempItem[displayKey] : tempItem;
+                    spinCount++;
+
+                    if (spinCount >= totalSpins) {
+                        clearInterval(intervalId);
+                        const finalItem = getRandomItem(dataPool);
+                        reelContent.textContent = displayKey ? finalItem[displayKey] : finalItem;
+                        resolve(finalItem);
+                    }
+                }, spinInterval);
+            });
+        }
+
+        /**
+         * Calls the Gemini API to generate text based on a given prompt.
+         * @param {string} prompt The text prompt for the LLM.
+         * @param {HTMLElement} outputElement The DOM element to display the output.
+         * @param {HTMLElement} outputArea The parent area to show/hide.
+         */
+        async function callGeminiAPI(prompt, outputElement, outputArea) {
+            outputElement.innerHTML = '<div class="text-center py-4"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div><p class="mt-2 text-gray-600">Generating...</p></div>';
+            outputArea.style.display = 'block';
+
+            try {
+                const chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    outputElement.innerHTML = text;
+                } else {
+                    outputElement.textContent = "Could not generate response. Please try again.";
+                    console.error("Gemini API response structure unexpected:", result);
+                }
+            } catch (error) {
+                outputElement.textContent = "Error generating response. Please check your internet connection or try again later.";
+                console.error("Error calling Gemini API:", error);
+            }
+        }
+
+        /**
+         * Generates a challenge based on the selected BSER concept, category, sports action, and sport type.
+         */
+        async function generateChallenge() {
+            // Start audio context on first user interaction
+            if (!audioContextStarted) {
+                await Tone.start();
+                Tone.Transport.start();
+                audioContextStarted = true;
+                console.log("AudioContext and Tone.Transport started.");
+            }
+
+            spinButton.disabled = true;
+            explainBserButton.disabled = true;
+            generateAnswerButton.disabled = true;
+
+            challengeText.textContent = "Spinning...";
+            hintArea.style.display = 'none';
+            bserExplanationArea.style.display = 'none';
+            exampleAnswerArea.style.display = 'none';
+            showHintButton.textContent = 'Show Hint/Answer Guide';
+
+            // Start global spin sound loop
+            if (!globalSpinLoop) {
+                globalSpinLoop = new Tone.Loop(time => {
+                    spinSynth.triggerAttackRelease("C4", "64n", time, 0.1);
+                }, "16n").start(0);
+            } else {
+                globalSpinLoop.start(0);
+            }
+
+            // Spin reels sequentially to ensure dependencies are met
+            currentReel1Value = await spinReel(reel1, bserConcepts, 'name');
+            // Spin reel4 (Sport Type) first, as reel3 (Sports Action) depends on it
+            currentReel4Value = await spinReel(reel4, sportsData, 'name'); // Select a sport object
+            // Now spin reel2 (Category/Example) based on currentReel1Value
+            currentReel2Value = await spinReel(reel2, currentReel1Value.categories, 'name');
+            // Finally, spin reel3 (Sports Action) based on the actions available for currentReel4Value
+            currentReel3Value = await spinReel(reel3, currentReel4Value.actions, 'name');
+
+            // Stop global spin sound loop after all reels have settled
+            if (globalSpinLoop) {
+                globalSpinLoop.stop();
+            }
+            stopSynth.triggerAttackRelease("C3", "4n");
+
+            // Construct the challenge question
+            const challenge = `Using the BSER framework, describe how the concept of ` +
+                             `<span class="font-bold text-blue-600">${currentReel1Value.name}</span> ` +
+                             `specifically through <span class="font-bold text-blue-600">${currentReel2Value.name}</span> ` +
+                             `(e.g., ${currentReel2Value.example}), ` +
+                             `is evident in the <span class="font-bold text-blue-600">${currentReel3Value.name}</span> ` +
+                             `action in <span class="font-bold text-blue-600">${currentReel4Value.name}</span> ` + // Use .name for sport type
+                             `(e.g., ${currentReel3Value.description}).`;
+
+            challengeText.innerHTML = challenge;
+            spinButton.disabled = false;
+            explainBserButton.disabled = false;
+            generateAnswerButton.disabled = false;
+
+            // Generate hint text
+            const hint = `Consider:
+            1. How does the body move or what body parts/shapes are involved in a ${currentReel3Value.name} in ${currentReel4Value.name} that relates to ${currentReel1Value.name} and ${currentReel2Value.name}?
+            2. What is the space like (location, direction, plane) during a ${currentReel3Value.name} in ${currentReel4Value.name} in relation to ${currentReel1Value.name} and ${currentReel2Value.name}?
+            3. What effort (time, flow, force) is applied during a ${currentReel3Value.name} in ${currentReel4Value.name} that relates to ${currentReel1Value.name} and ${currentReel2Value.name}?
+            4. What relationships (people, position, timing, goal, environment) are involved in a ${currentReel3Value.name} in ${currentReel4Value.name} that relates to ${currentReel1Value.name} and ${currentReel2Value.name}?
+            Focus your answer on the specific example provided: "${currentReel2Value.example}".`;
+            hintText.textContent = hint;
+        }
+
+        // Event Listeners
+        spinButton.addEventListener('click', generateChallenge);
+        showHintButton.addEventListener('click', () => {
+            if (hintArea.style.display === 'none') {
+                hintArea.style.display = 'block';
+                showHintButton.textContent = 'Hide Hint/Answer Guide';
+            } else {
+                hintArea.style.display = 'none';
+                showHintButton.textContent = 'Show Hint/Answer Guide';
+            }
+        });
+
+        explainBserButton.addEventListener('click', () => {
+            if (currentReel1Value && currentReel2Value && currentReel3Value && currentReel4Value) {
+                const prompt = `Explain the BSER concept of ${currentReel1Value.name} specifically focusing on ${currentReel2Value.name} (e.g., ${currentReel2Value.example}) in the context of the ${currentReel3Value.name} action in ${currentReel4Value.name} (e.g., ${currentReel3Value.description}). Provide a concise explanation suitable for a student learning the BSER framework.`;
+                callGeminiAPI(prompt, bserExplanationText, bserExplanationArea);
+            } else {
+                bserExplanationText.textContent = "Please spin the reels first to get a challenge!";
+                bserExplanationArea.style.display = 'block';
+            }
+        });
+
+        generateAnswerButton.addEventListener('click', () => {
+            if (currentReel1Value && currentReel2Value && currentReel3Value && currentReel4Value) {
+                const prompt = `Provide a detailed example answer for the following BSER challenge: "Using the BSER framework, describe how the concept of ${currentReel1Value.name} specifically through ${currentReel2Value.name} (e.g., ${currentReel2Value.example}), is evident in the ${currentReel3Value.name} action in ${currentReel4Value.name} (e.g., ${currentReel3Value.description})." Ensure your answer clearly applies the ${currentReel1Value.name} concept through its ${currentReel2Value.name} category to the ${currentReel3Value.name} action in ${currentReel4Value.name}.`;
+                callGeminiAPI(prompt, exampleAnswerText, exampleAnswerArea);
+            } else {
+                exampleAnswerText.textContent = "Please spin the reels first to get a challenge!";
+                exampleAnswerArea.style.display = 'block';
+            }
+        });
+
+        // Initial load
+        window.onload = () => {
+            reel1.querySelector('.reel-content').textContent = "BSER Concept";
+            reel2.querySelector('.reel-content').textContent = "Category/Example";
+            reel3.querySelector('.reel-content').textContent = "Sports Action";
+            reel4.querySelector('.reel-content').textContent = "Sport Type";
+        };
+
+    </script>
+</body>
+</html>
